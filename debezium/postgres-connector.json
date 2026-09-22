@@ -1,0 +1,22 @@
+{
+  "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+  "plugin.name": "pgoutput",
+  "database.hostname": "postgres",
+  "database.port": "5432",
+  "database.user": "catalog",
+  "database.password": "catalog",
+  "database.dbname": "catalog",
+  "topic.prefix": "catalog",
+  "table.include.list": "public.products",
+  "snapshot.mode": "initial",
+  "publication.autocreate.mode": "filtered",
+  "slot.name": "catalog_products_slot",
+  "decimal.handling.mode": "double",
+  "time.precision.mode": "adaptive_time_microseconds",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter.schemas.enable": "false",
+  "value.converter.schemas.enable": "false",
+  "tombstones.on.delete": "true"
+}
+
