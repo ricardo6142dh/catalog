@@ -26,3 +26,18 @@ func TestParseProductEventTombstone(t *testing.T) {
 		t.Fatalf("ParseProductEvent() error = %v, want ErrTombstone", err)
 	}
 }
+
+func TestParseProductEventAcceptsRFC3339Timestamps(t *testing.T) {
+	payload := []byte(`{
+      "after":{"id":"product-1","name":"Phone","brand":"Apple","category":"phones","price":1,"stock":1,"version":1,"active":true,"created_at":"2026-10-19T15:55:56.844670Z","updated_at":"2026-10-19T15:55:56.844670Z"},
+      "source":{"db":"catalog","schema":"public","table":"products","lsn":42},
+      "op":"c"
+    }`)
+	event, err := ParseProductEvent(payload)
+	if err != nil {
+		t.Fatalf("ParseProductEvent() error = %v", err)
+	}
+	if event.Product.UpdatedAt == 0 {
+		t.Fatal("UpdatedAt = 0, want parsed timestamp")
+	}
+}

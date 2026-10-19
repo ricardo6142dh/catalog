@@ -78,10 +78,10 @@ func (c *ElasticsearchClient) SearchProducts(ctx context.Context, params SearchP
 		filters = append(filters, map[string]any{"range": map[string]any{"price": rangeValues}})
 	}
 
-	sort := []any{map[string]any{"_score": "desc"}, map[string]any{"_id": "asc"}}
+	sort := []any{map[string]any{"_score": "desc"}, map[string]any{"product_id": "asc"}}
 
 	if params.Sort == "price_asc" {
-		sort = []any{map[string]any{"price": "asc"}, map[string]any{"_id": "asc"}}
+		sort = []any{map[string]any{"price": "asc"}, map[string]any{"product_id": "asc"}}
 	}
 	request := map[string]any{
 		"from":             (params.Page - 1) * params.Limit,
@@ -138,7 +138,7 @@ func (c *ElasticsearchClient) SuggestProducts(ctx context.Context, params Sugges
 				"must_not": []any{map[string]any{"term": map[string]any{"deleted": true}}},
 			},
 		},
-		"sort": []any{map[string]any{"_score": "desc"}, map[string]any{"_id": "asc"}},
+		"sort": []any{map[string]any{"_score": "desc"}, map[string]any{"product_id": "asc"}},
 	}
 	var response struct {
 		Hits struct {

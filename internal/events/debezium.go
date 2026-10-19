@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
 )
 
 var ErrTombstone = errors.New("Debezium tombstone")
@@ -19,17 +21,41 @@ const (
 )
 
 type ProductState struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Brand       string  `json:"brand"`
-	Category    string  `json:"category"`
-	Price       float64 `json:"price"`
-	Stock       int     `json:"stock"`
-	Version     int64   `json:"version"`
-	Active      bool    `json:"active"`
-	CreatedAt   int64   `json:"created_at"`
-	UpdatedAt   int64   `json:"updated_at"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Brand       string            `json:"brand"`
+	Category    string            `json:"category"`
+	Price       float64           `json:"price"`
+	Stock       int               `json:"stock"`
+	Version     int64             `json:"version"`
+	Active      bool              `json:"active"`
+	CreatedAt   DebeziumTimestamp `json:"created_at"`
+	UpdatedAt   DebeziumTimestamp `json:"updated_at"`
+}
+
+type DebeziumTimestamp int64
+
+func (t *DebeziumTimestamp) UnmarshalJSON(payload []byte) error {
+	raw := string(payload)
+	if len(raw) >= 2 && raw[0] == '"' {
+		value, err := strconv.Unquote(raw)
+		if err != nil {
+			return fmt.Errorf("decode Debezium timestamp: %w", err)
+		}
+		parsed, err := time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			return fmt.Errorf("parse Debezium timestamp %q: %w", value, err)
+		}
+		*t = DebeziumTimestamp(parsed.UnixMicro())
+		return nil
+	}
+	micros, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return fmt.Errorf("parse Debezium timestamp %q: %w", raw, err)
+	}
+	*t = DebeziumTimestamp(micros)
+	return nil
 }
 
 type ProductEvent struct {

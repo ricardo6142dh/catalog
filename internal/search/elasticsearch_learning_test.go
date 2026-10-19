@@ -51,7 +51,7 @@ func TestSearchProductsBuildsQueryAndDecodesHits(t *testing.T) {
 	}
 	bodyJSON, _ := json.Marshal(requestBody)
 	body := string(bodyJSON)
-	for _, want := range []string{`"multi_match"`, `"fuzziness":"AUTO"`, `"brand.keyword":"Apple"`, `"category.keyword":"phones"`, `"price":{"gte":500,"lte":1500}`, `"price":"asc"`, `"_id":"asc"`, `"deleted":true`} {
+	for _, want := range []string{`"multi_match"`, `"fuzziness":"AUTO"`, `"brand.keyword":"Apple"`, `"category.keyword":"phones"`, `"price":{"gte":500,"lte":1500}`, `"price":"asc"`, `"product_id":"asc"`, `"deleted":true`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("request body = %s, want %s", body, want)
 		}

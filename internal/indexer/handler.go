@@ -53,7 +53,7 @@ func (h *Handler) ApplyProductEvent(ctx context.Context, event events.ProductEve
 			Price:       product.Price,
 			Stock:       product.Stock,
 			Version:     product.Version,
-			UpdatedAt:   time.UnixMicro(product.UpdatedAt).UTC(),
+			UpdatedAt:   time.UnixMicro(int64(product.UpdatedAt)).UTC(),
 		})
 	}
 	if errors.Is(err, search.ErrStaleVersion) {

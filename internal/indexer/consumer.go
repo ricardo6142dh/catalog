@@ -29,7 +29,7 @@ func NewConsumer(brokers []string, topic, groupID string, handler *Handler, logg
 		CommitInterval: 0,
 		StartOffset:    kafka.FirstOffset,
 	})
-	dlq := &kafka.Writer{Addr: kafka.TCP(brokers...), Topic: topic + ".dlq", Balancer: &kafka.Hash{}}
+	dlq := &kafka.Writer{Addr: kafka.TCP(brokers...), Topic: topic + ".dlq", Balancer: &kafka.Hash{}, AllowAutoTopicCreation: true}
 	return &Consumer{reader: reader, dlq: dlq, handler: handler, logger: logger}
 }
 

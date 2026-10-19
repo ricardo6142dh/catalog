@@ -59,6 +59,20 @@ services:
     restart: unless-stopped
     networks: [catalog]
 
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      - sh
+      - -ec
+      - |
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic catalog.public.products --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic catalog.public.products.dlq --partitions 1 --replication-factor 1
+    restart: "no"
+    networks: [catalog]
+
   kafka-connect:
     image: debezium/connect:3.0.0.Final
     environment:
@@ -77,8 +91,8 @@ services:
     ports:
       - "${KAFKA_CONNECT_PORT:-8083}:8083"
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     healthcheck:
@@ -242,6 +256,8 @@ services:
       elasticsearch-setup:
         condition: service_completed_successfully
       debezium-setup:
+        condition: service_completed_successfully
+      kafka-init:
         condition: service_completed_successfully
     restart: "no"
     networks: [catalog]

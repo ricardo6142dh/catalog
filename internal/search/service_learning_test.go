@@ -71,6 +71,19 @@ func TestSearchCacheMissStoresBackendResult(t *testing.T) {
 	}
 }
 
+func TestSearchDoesNotCacheEmptyResult(t *testing.T) {
+	cacheStore := &fakeCache{}
+	backend := &fakeBackend{result: SearchResult{Total: 0}}
+	service := NewCachedService(cacheStore, backend, time.Minute, func(SearchParams) string { return "search:key" })
+
+	if _, err := service.Search(context.Background(), SearchParams{}); err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+	if cacheStore.setCalls != 0 {
+		t.Fatalf("cache sets = %d, want 0 for empty result", cacheStore.setCalls)
+	}
+}
+
 func TestCacheFailureFallsBackToBackend(t *testing.T) {
 	cacheStore := &fakeCache{err: errors.New("redis down")}
 	backend := &fakeBackend{result: SearchResult{Total: 2}}

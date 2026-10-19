@@ -15,6 +15,11 @@ if ! curl --fail --silent "$base_url/_alias/products" >/dev/null 2>&1; then
     -X POST "$base_url/_aliases" \
     -H 'Content-Type: application/json' \
     -d '{"actions":[{"add":{"index":"products_v1","alias":"products","is_write_index":true}}]}' >/dev/null
+elif ! curl --fail --silent "$base_url/products/_mapping" | grep -q '"product_id"'; then
+  curl --fail --silent --show-error \
+    -X POST "$base_url/_aliases" \
+    -H 'Content-Type: application/json' \
+    -d '{"actions":[{"remove":{"index":"*","alias":"products"}},{"add":{"index":"products_v1","alias":"products","is_write_index":true}}]}' >/dev/null
 fi
 
 if ! curl --fail --silent "$base_url/_alias/products_cdc_targets" >/dev/null 2>&1; then

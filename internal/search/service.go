@@ -59,7 +59,11 @@ func (s *SearchService) Search(ctx context.Context, params SearchParams) (Search
 	if err != nil {
 		return SearchResult{}, err
 	}
-	if payload, err := json.Marshal(result); err == nil {
+	if result.Total > 0 {
+		payload, err := json.Marshal(result)
+		if err != nil {
+			return result, nil
+		}
 		if err := s.cache.Set(ctx, key, payload, s.ttl); err != nil {
 			s.logger.Warn("write search cache", "error", err, "key", key)
 		}

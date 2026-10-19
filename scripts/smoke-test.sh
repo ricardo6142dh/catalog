@@ -15,17 +15,19 @@ curl --fail --silent "http://localhost:${SEARCH_API_PORT:-8082}/healthz" >/dev/n
 curl --fail --silent "http://localhost:${ELASTICSEARCH_PORT:-9200}/_alias/products" >/dev/null
 curl --fail --silent "http://localhost:${ELASTICSEARCH_PORT:-9200}/_alias/products_cdc_targets" >/dev/null
 
-product_name="SmokeProduct$(date +%s)"
+smoke_suffix="$(date +%s)"
+product_name="SmokeProduct$smoke_suffix"
+product_brand="smoke$smoke_suffix"
 product_response="$(curl --fail --silent \
   -X POST "http://localhost:${PRODUCT_API_PORT:-8081}/products" \
   -H 'Content-Type: application/json' \
-  -d "{\"name\":\"$product_name\",\"description\":\"CDC smoke test\",\"brand\":\"smoke\",\"category\":\"tests\",\"price\":1,\"stock\":1}")"
+  -d "{\"name\":\"$product_name\",\"description\":\"CDC smoke test\",\"brand\":\"$product_brand\",\"category\":\"tests\",\"price\":1,\"stock\":1}")"
 product_id="$(printf '%s' "$product_response" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
 test -n "$product_id"
 
 attempt=0
 while [ "$attempt" -lt 30 ]; do
-  search_response="$(curl --fail --silent "http://localhost:${SEARCH_API_PORT:-8082}/search?q=$product_name" || true)"
+  search_response="$(curl --fail --silent "http://localhost:${SEARCH_API_PORT:-8082}/search?q=$product_name&brand=$product_brand" || true)"
   if printf '%s' "$search_response" | grep -q "$product_id"; then
 	  curl --fail --silent "http://localhost:${SEARCH_API_PORT:-8082}/products/$product_id" >/dev/null
     curl --fail --silent -X DELETE "http://localhost:${PRODUCT_API_PORT:-8081}/products/$product_id" >/dev/null
