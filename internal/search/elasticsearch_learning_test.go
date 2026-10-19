@@ -51,7 +51,7 @@ func TestSearchProductsBuildsQueryAndDecodesHits(t *testing.T) {
 	}
 	bodyJSON, _ := json.Marshal(requestBody)
 	body := string(bodyJSON)
-	for _, want := range []string{`"multi_match"`, `"fuzziness":"AUTO"`, `"brand.keyword":"Apple"`, `"category.keyword":"phones"`, `"price":{"gte":500,"lte":1500}`, `"price":"asc"`, `"_id":"asc"`} {
+	for _, want := range []string{`"multi_match"`, `"fuzziness":"AUTO"`, `"brand.keyword":"Apple"`, `"category.keyword":"phones"`, `"price":{"gte":500,"lte":1500}`, `"price":"asc"`, `"_id":"asc"`, `"deleted":true`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("request body = %s, want %s", body, want)
 		}
@@ -98,9 +98,68 @@ func TestIndexProductIdentifiesStaleVersion(t *testing.T) {
 	}
 }
 
-func TestLearningSwitchProductsAliasTargetsV2(t *testing.T) {
-	t.Skip("TODO(ricardo): implement ElasticsearchClient.SwitchProductsAlias")
+func TestDeleteProductUsesExternalVersion(t *testing.T) {
+	var method, path, versionType, version string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		versionType, version = r.URL.Query().Get("version_type"), r.URL.Query().Get("version")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	client, _ := NewElasticsearch(server.URL, time.Second)
 
+	if err := client.DeleteProduct(context.Background(), "product-1", 9); err != nil {
+		t.Fatalf("DeleteProduct() error = %v", err)
+	}
+	if method != http.MethodPut || path != "/products/_doc/product-1" || versionType != "external_gte" || version != "9" {
+		t.Fatalf("request = %s %s?version=%s&version_type=%s", method, path, version, versionType)
+	}
+}
+
+func TestSuggestProductsReturnsNames(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/products/_search" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		payload, _ := io.ReadAll(r.Body)
+		if !strings.Contains(string(payload), `"match_bool_prefix"`) {
+			t.Fatalf("body = %s, want match_bool_prefix", payload)
+		}
+		if !strings.Contains(string(payload), `"deleted":true`) {
+			t.Fatalf("body = %s, want deleted tombstone exclusion", payload)
+		}
+		_, _ = io.WriteString(w, `{"hits":{"hits":[{"_source":{"product_id":"p1","name":"iPhone 16"}},{"_source":{"product_id":"p2","name":"iPhone Case"}}]}}`)
+	}))
+	defer server.Close()
+	client, _ := NewElasticsearch(server.URL, time.Second)
+
+	result, err := client.SuggestProducts(context.Background(), SuggestParams{Query: "iph", Limit: 2})
+	if err != nil {
+		t.Fatalf("SuggestProducts() error = %v", err)
+	}
+	if len(result.Suggestions) != 2 || result.Suggestions[0] != "iPhone 16" || len(result.Products) != 2 {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestCreateProductsIndexUsesRequestedName(t *testing.T) {
+	var method, path string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	client, _ := NewElasticsearch(server.URL, time.Second)
+
+	if err := client.CreateProductsIndex(context.Background(), "products_v2", map[string]any{"mappings": map[string]any{}}); err != nil {
+		t.Fatalf("CreateProductsIndex() error = %v", err)
+	}
+	if method != http.MethodPut || path != "/products_v2" {
+		t.Fatalf("request = %s %s", method, path)
+	}
+}
+
+func TestSwitchProductsAliasTargetsV2(t *testing.T) {
 	var body string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		payload, _ := io.ReadAll(r.Body)

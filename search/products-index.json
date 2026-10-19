@@ -1,0 +1,43 @@
+{
+  "settings": {
+    "analysis": {
+      "normalizer": {
+        "lowercase": {
+          "type": "custom",
+          "filter": ["lowercase", "asciifolding"]
+        }
+      },
+      "filter": {
+        "catalog_synonyms": {
+          "type": "synonym",
+          "synonyms": [
+            "celular, smartphone",
+            "notebook, laptop",
+            "tv, televisão",
+            "fone, headphones"
+          ]
+        }
+      },
+      "analyzer": {
+        "catalog_text": {
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding", "catalog_synonyms"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "product_id": {"type": "keyword"},
+      "name": {"type": "text", "analyzer": "catalog_text", "fields": {"keyword": {"type": "keyword"}}},
+      "description": {"type": "text", "analyzer": "catalog_text"},
+      "brand": {"type": "text", "fields": {"keyword": {"type": "keyword", "normalizer": "lowercase"}}},
+      "category": {"type": "text", "fields": {"keyword": {"type": "keyword", "normalizer": "lowercase"}}},
+      "price": {"type": "double"},
+      "stock": {"type": "integer"},
+      "version": {"type": "long"},
+      "deleted": {"type": "boolean"},
+      "updated_at": {"type": "date"}
+    }
+  }
+}

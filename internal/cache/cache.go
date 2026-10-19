@@ -54,6 +54,12 @@ func (c *RedisCache) Set(ctx context.Context, key string, value []byte, ttl time
 	return c.client.Set(ctx, key, value, ttl).Err()
 }
 
+func (c *RedisCache) Delete(ctx context.Context, key string) error {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	return c.client.Del(ctx, key).Err()
+}
+
 func (c *RedisCache) Close() error {
 	return c.client.Close()
 }

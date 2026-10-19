@@ -8,8 +8,6 @@ import (
 )
 
 func TestLearningSearchCacheKeyCanonicalization(t *testing.T) {
-	t.Skip("TODO(ricardo): implement BuildSearchCacheKey")
-
 	first := cache.BuildSearchCacheKey(search.SearchParams{Query: "IPhone", Brand: "Apple", Page: 1, Limit: 20, Sort: "relevance"})
 	second := cache.BuildSearchCacheKey(search.SearchParams{Brand: "apple", Page: 1, Query: "iphone", Limit: 20, Sort: "relevance"})
 	if first != second {
@@ -18,8 +16,6 @@ func TestLearningSearchCacheKeyCanonicalization(t *testing.T) {
 }
 
 func TestLearningSearchCacheKeyIncludesPage(t *testing.T) {
-	t.Skip("TODO(ricardo): implement BuildSearchCacheKey")
-
 	first := cache.BuildSearchCacheKey(search.SearchParams{Query: "iphone", Page: 1, Limit: 20, Sort: "relevance"})
 	second := cache.BuildSearchCacheKey(search.SearchParams{Query: "iphone", Page: 2, Limit: 20, Sort: "relevance"})
 	if first == second {

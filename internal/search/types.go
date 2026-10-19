@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-var ErrNotImplemented = errors.New("not implemented")
 var ErrNotFound = errors.New("search document not found")
 var ErrStaleVersion = errors.New("stale product version")
 
@@ -34,6 +33,7 @@ type ProductDocument struct {
 	Price       float64   `json:"price"`
 	Stock       int       `json:"stock"`
 	Version     int64     `json:"version"`
+	Deleted     bool      `json:"deleted,omitempty"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 

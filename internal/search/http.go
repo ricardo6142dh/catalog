@@ -45,8 +45,8 @@ func ParseSearchParams(r *http.Request) (SearchParams, error) {
 	query := r.URL.Query()
 	params := SearchParams{
 		Query:    strings.TrimSpace(query.Get("q")),
-		Brand:    strings.TrimSpace(query.Get("brand")),
-		Category: strings.TrimSpace(query.Get("category")),
+		Brand:    strings.ToLower(strings.TrimSpace(query.Get("brand"))),
+		Category: strings.ToLower(strings.TrimSpace(query.Get("category"))),
 		Sort:     strings.TrimSpace(query.Get("sort")),
 		Limit:    20,
 		Page:     1,
@@ -120,10 +120,6 @@ func (h *HTTPHandler) search(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 	result, err := h.service.Search(ctx, params)
-	if errors.Is(err, ErrNotImplemented) {
-		writeSearchError(w, http.StatusNotImplemented, "search learning TODO not implemented")
-		return
-	}
 	if err != nil {
 		h.logger.Error("search products", "error", err)
 		writeSearchError(w, http.StatusServiceUnavailable, "search backend unavailable")
@@ -141,10 +137,6 @@ func (h *HTTPHandler) suggest(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 	result, err := h.service.Suggest(ctx, params)
-	if errors.Is(err, ErrNotImplemented) {
-		writeSearchError(w, http.StatusNotImplemented, "suggest learning TODO not implemented")
-		return
-	}
 	if err != nil {
 		writeSearchError(w, http.StatusServiceUnavailable, "search backend unavailable")
 		return

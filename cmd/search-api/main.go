@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/cache"
 	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/config"
 	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/search"
 )
@@ -44,8 +45,21 @@ func run(logger *slog.Logger) error {
 	if err := elasticsearch.Health(startupCtx); err != nil {
 		return fmt.Errorf("connect Elasticsearch: %w", err)
 	}
+	redisTimeout, err := config.Duration("REDIS_TIMEOUT", 200*time.Millisecond)
+	if err != nil {
+		return err
+	}
+	cacheTTL, err := config.Duration("SEARCH_CACHE_TTL", 120*time.Second)
+	if err != nil {
+		return err
+	}
+	redisCache := cache.NewRedis(config.String("REDIS_ADDR", "localhost:6379"), redisTimeout)
+	defer redisCache.Close()
+	if err := redisCache.Ping(startupCtx); err != nil {
+		logger.Warn("Redis unavailable; cache disabled until it recovers", "error", err)
+	}
 
-	service := search.NewService(elasticsearch)
+	service := search.NewCachedServiceWithLogger(redisCache, elasticsearch, cacheTTL, cache.BuildSearchCacheKey, logger)
 	handler := search.NewHTTPHandler(service, logger, requestTimeout)
 	health := func(ctx context.Context) error {
 		return elasticsearch.Health(ctx)

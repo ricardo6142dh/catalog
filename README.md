@@ -1,10 +1,9 @@
-# Catalog Search CDC — learning scaffold
+# Catalog Search CDC
 
-Laboratório local de busca de catálogo. Infraestrutura do Milestone 1 está
-validada. Product API funciona contra PostgreSQL. Search API e indexer compilam,
-conectam às dependências e deixam exercícios centrais explícitos como TODOs.
+Laboratório local e executável de busca de catálogo para estudar golden source,
+CDC, Kafka, indexação idempotente, cache-aside e reindex sem bloquear escritas.
 
-## Arquitetura futura
+## Arquitetura
 
 ```text
 Product API -> PostgreSQL -> Debezium -> Kafka -> Indexer -> Elasticsearch
@@ -12,8 +11,9 @@ Search API  -> Redis (cache-aside) -> Elasticsearch
 ```
 
 Product API escreve somente no PostgreSQL. Debezium registra mudanças no Kafka.
-Search API e indexer ainda não completam fluxo de leitura/indexação: isso é parte
-dos exercícios abaixo.
+Indexer aplica eventos em todos índices do alias `products_cdc_targets`, usando
+versionamento externo para ignorar eventos antigos. Search API lê somente do
+alias `products`; Redis falha aberto para Elasticsearch.
 
 ## Pré-requisitos
 
@@ -50,10 +50,10 @@ make kafka-topics
 | 9092 | Kafka | acesso do host |
 | 8083 | Kafka Connect | REST API e estado do Debezium |
 | 8090 | Kafka UI | inspeção de brokers, tópicos e connector |
-| 6379 | Redis | cache futuro |
+| 6379 | Redis | cache-aside de buscas e detalhes |
 | 9200 | Elasticsearch | HTTP API do motor de busca |
 | 8081 | Product API | CRUD da golden source |
-| 8082 | Search API | endpoints scaffold de busca |
+| 8082 | Search API | busca, sugestões e detalhes |
 
 Portas podem ser trocadas pelas variáveis documentadas em `.env.example`.
 Comunicação interna usa nomes Compose e portas internas fixas.
@@ -105,8 +105,9 @@ make config           # valida/renderiza Compose
 make smoke            # testa cinco health endpoints/processos
 make kafka-topics     # lista tópicos
 make debezium-status  # mostra estado do connector
-make check            # fmt, testes, vet e build dos três binários
+make check            # fmt, testes, vet e build dos quatro binários
 make seed             # cria seis produtos pela Product API
+make reindex          # rebuild versionado e troca segura do alias
 ```
 
 ## Dados e segurança local
@@ -128,10 +129,11 @@ GET    http://localhost:8082/suggest
 GET    http://localhost:8082/products/{id}
 ```
 
-`/search` consulta diretamente o alias Elasticsearch `products`, sem Redis ou
-outro cache. Aceita `q`, `brand`, `category`, `min_price`, `max_price`,
-`sort=relevance|price_asc`, `limit` e `page`. `/suggest` permanece como exercício
-e retorna `501 Not Implemented`. `/healthz` existe nas duas APIs.
+`/search` usa cache-aside Redis e consulta o alias Elasticsearch `products` no
+miss. Aceita `q`, `brand`, `category`, `min_price`, `max_price`,
+`sort=relevance|price_asc`, `limit` e `page`. `/suggest` oferece autocomplete.
+`/products/{id}` também usa cache direto. Falha Redis não derruba busca.
+`/healthz` existe nas duas APIs.
 
 Exemplo de busca:
 
@@ -147,39 +149,37 @@ curl -fsS -X POST http://localhost:8081/products \
   -d '{"name":"Apple iPhone","description":"Smartphone","brand":"Apple","category":"phones","price":999,"stock":10}'
 ```
 
-## Learning TODOs
+## Reindex
 
-Testes-guia usam `t.Skip`. Remova skip somente ao começar respectivo exercício.
+`make reindex` executa:
 
-| Arquivo | Função | Comportamento esperado | Teste relacionado |
-|---|---|---|---|
-| `internal/cache/key.go` | `BuildSearchCacheKey()` | normalizar caixa/valores, ordenar representação e incluir todo parâmetro que muda resposta | `go test ./internal/cache/...` |
-| `internal/search/elasticsearch.go` | `IndexProduct()` | usar `product_id` como `_id` | `go test ./internal/search/... -run LearningIndexProduct` |
-| `internal/indexer/handler.go` | `ApplyProductEvent()` | transformar evento, indexar/delete e impedir versão velha de vencer | `go test ./internal/indexer/... -run Learning` |
-| `internal/search/elasticsearch.go` | `SwitchProductsAlias()` | trocar atomicamente `products` para novo índice | `go test ./internal/search/... -run LearningSwitchProductsAlias` |
-| `internal/search/elasticsearch.go` | `CreateProductsIndex()` e futuro `cmd/reindex` | criar `products_vN`, backfill, validar e trocar alias sem bloquear writes | adicione testes em `internal/search` e `test/integration` |
+1. lock advisory no PostgreSQL;
+2. criação de `products_v<timestamp>`;
+3. inclusão do novo índice em `products_cdc_targets`;
+4. backfill de produtos ativos com `external_gte`;
+5. refresh, validação de contagem e versões por produto;
+6. espera do consumer group atingir lag zero em duas leituras consecutivas;
+7. nova validação de versões e troca atômica do alias `products`;
+8. remoção dos índices antigos dos alvos CDC.
 
-TODO adicional de autocomplete, fora dos sete exercícios principais:
-`ElasticsearchClient.SuggestProducts()`.
+Índice anterior não é apagado e permanece disponível para rollback manual. Se o
+processo falhar antes da troca, alias de leitura continua intacto.
 
-Para listar marcações:
+Via Compose:
 
 ```bash
-grep -R -n 'TODO(ricardo)' internal cmd
+docker compose --profile tools run --rm reindex
 ```
 
-## Escopo adiado
+## Garantias e limites
 
-- escrita final do indexer;
-- autocomplete real;
-- cache-aside;
-- índices versionados, aliases e reindex;
-- Milestone 7: experimentos completos de resiliência.
-
-## Desvios conscientes do desenho final
-
-- índice versionado, mapping e aliases Elasticsearch permanecem exercícios;
-- Search API consulta Elasticsearch diretamente; Redis/cache-aside permanece
-  adiado para o Milestone 5;
-- indexer encerra com erro ao receber primeiro evento, porque
-  `ApplyProductEvent()` permanece intencionalmente não implementado.
+- PostgreSQL é fonte de verdade; Product API não publica Kafka.
+- Offsets Kafka são confirmados somente depois de aplicar evento.
+- Falhas recebem três tentativas limitadas; poison messages vão para
+  `catalog.public.products.dlq` antes do commit do offset.
+- `external_gte` torna duplicatas seguras e rejeita versão antiga.
+- Cache de busca expira por TTL; cache direto é invalidado pelo indexer.
+- Redis indisponível causa bypass, não indisponibilidade da busca.
+- Elasticsearch indisponível em cache miss retorna `503`.
+- Métricas Prometheus ficam como melhoria operacional; logs JSON já expõem
+  request, produto, versão, partição, offset e erros de cache/DLQ.

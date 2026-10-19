@@ -155,6 +155,20 @@ services:
     restart: unless-stopped
     networks: [catalog]
 
+  elasticsearch-setup:
+    image: curlimages/curl:8.12.1
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    volumes:
+      - ./search/products-index.json:/config/products-index.json:ro
+      - ./scripts/setup-elasticsearch.sh:/scripts/setup-elasticsearch.sh:ro
+    command: ["sh", "/scripts/setup-elasticsearch.sh"]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: "no"
+    networks: [catalog]
+
   product-api:
     build:
       context: .
@@ -185,15 +199,18 @@ services:
       args:
         COMMAND: search-api
     environment:
+      REDIS_ADDR: redis:6379
       ELASTICSEARCH_URL: http://elasticsearch:9200
       SEARCH_API_PORT: "8082"
+      REDIS_TIMEOUT: 200ms
       ELASTICSEARCH_TIMEOUT: 3s
       REQUEST_TIMEOUT: 5s
+      SEARCH_CACHE_TTL: 120s
     ports:
       - "${SEARCH_API_PORT:-8082}:8082"
     depends_on:
-      elasticsearch:
-        condition: service_healthy
+      elasticsearch-setup:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8082/healthz"]
       interval: 10s
@@ -215,13 +232,45 @@ services:
       KAFKA_CONNECT_TIMEOUT: 5s
       ELASTICSEARCH_URL: http://elasticsearch:9200
       ELASTICSEARCH_TIMEOUT: 3s
+      REDIS_ADDR: redis:6379
+      REDIS_TIMEOUT: 200ms
     depends_on:
       kafka:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+      elasticsearch-setup:
+        condition: service_completed_successfully
       debezium-setup:
         condition: service_completed_successfully
+    restart: "no"
+    networks: [catalog]
+
+  reindex:
+    profiles: ["tools"]
+    build:
+      context: .
+      args:
+        COMMAND: reindex
+    environment:
+      DATABASE_URL: postgres://catalog:catalog@postgres:5432/catalog?sslmode=disable
+      POSTGRES_CONNECT_TIMEOUT: 5s
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_TIMEOUT: 5s
+      PRODUCTS_INDEX_DEFINITION: /config/products-index.json
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_TOPIC: catalog.public.products
+      KAFKA_GROUP_ID: catalog-indexer
+      REINDEX_CATCHUP_TIMEOUT: 60s
+    volumes:
+      - ./search/products-index.json:/config/products-index.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch-setup:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
     restart: "no"
     networks: [catalog]
 

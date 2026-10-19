@@ -42,8 +42,10 @@ CREATE TABLE IF NOT EXISTS products (
     version BIGINT NOT NULL DEFAULT 1 CHECK (version > 0),
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
 );
+ALTER TABLE products ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS products_active_id_idx ON products (id) WHERE active;
 ALTER TABLE products ALTER COLUMN id SET DEFAULT gen_random_uuid();
 `

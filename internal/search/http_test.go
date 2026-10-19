@@ -81,3 +81,14 @@ func TestParseSearchParamsRejectsInvalidRange(t *testing.T) {
 		t.Fatal("ParseSearchParams() error = nil, want invalid range")
 	}
 }
+
+func TestParseSearchParamsNormalizesExactFilters(t *testing.T) {
+	request := httptest.NewRequest("GET", "/search?brand=Apple&category=Phones", nil)
+	params, err := ParseSearchParams(request)
+	if err != nil {
+		t.Fatalf("ParseSearchParams() error = %v", err)
+	}
+	if params.Brand != "apple" || params.Category != "phones" {
+		t.Fatalf("filters = %q/%q, want apple/phones", params.Brand, params.Category)
+	}
+}

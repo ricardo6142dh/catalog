@@ -38,7 +38,7 @@ vet:
 	go vet ./...
 
 build:
-	go build ./cmd/product-api ./cmd/search-api ./cmd/indexer
+	go build ./cmd/product-api ./cmd/search-api ./cmd/indexer ./cmd/reindex
 
 check: fmt test vet build
 
@@ -49,4 +49,4 @@ search:
 	curl --fail --silent "http://localhost:$${SEARCH_API_PORT:-8082}/search?q=iphone&page=1"
 
 reindex:
-	@echo "Reindex job is deferred to Milestone 6."
+	go run ./cmd/reindex

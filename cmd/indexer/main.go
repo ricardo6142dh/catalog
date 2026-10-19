@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/cache"
 	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/config"
 	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/indexer"
 	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/search"
@@ -57,7 +58,14 @@ func run(logger *slog.Logger) error {
 	if err := elasticsearch.Health(probeCtx); err != nil {
 		return fmt.Errorf("connect Elasticsearch: %w", err)
 	}
-	handler := indexer.NewHandler(elasticsearch)
+	redisTimeout, err := config.Duration("REDIS_TIMEOUT", 200*time.Millisecond)
+	if err != nil {
+		return err
+	}
+	redisCache := cache.NewRedis(config.String("REDIS_ADDR", "localhost:6379"), redisTimeout)
+	defer redisCache.Close()
+	writer := indexer.NewMultiTargetWriter(elasticsearch)
+	handler := indexer.NewHandlerWithLogger(writer, redisCache, logger)
 	consumer := indexer.NewConsumer(
 		brokers,
 		config.String("KAFKA_TOPIC", "catalog.public.products"),
