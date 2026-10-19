@@ -7,6 +7,7 @@ import (
 
 var ErrNotImplemented = errors.New("not implemented")
 var ErrNotFound = errors.New("search document not found")
+var ErrStaleVersion = errors.New("stale product version")
 
 type SearchParams struct {
 	Query    string

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -76,6 +77,7 @@ func (c *ElasticsearchClient) SearchProducts(ctx context.Context, params SearchP
 	}
 
 	sort := []any{map[string]any{"_score": "desc"}, map[string]any{"_id": "asc"}}
+
 	if params.Sort == "price_asc" {
 		sort = []any{map[string]any{"price": "asc"}, map[string]any{"_id": "asc"}}
 	}
@@ -142,8 +144,36 @@ func (c *ElasticsearchClient) GetProduct(ctx context.Context, productID string) 
 }
 
 func (c *ElasticsearchClient) IndexProduct(ctx context.Context, product ProductDocument) error {
-	// TODO(ricardo): use product_id as _id and enforce product version semantics.
-	return ErrNotImplemented
+	if product.ProductID == "" {
+		return fmt.Errorf("product_id is required")
+	}
+	if product.Version < 1 {
+		return fmt.Errorf("product version must be positive")
+	}
+	query := url.Values{
+		"version":      []string{strconv.FormatInt(product.Version, 10)},
+		"version_type": []string{"external_gte"},
+	}
+
+	status, err := c.doJSON(
+		ctx,
+		http.MethodPut,
+		"/"+ProductsAlias+"/_doc/"+url.PathEscape(product.ProductID)+"?"+query.Encode(),
+		product,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	if status == http.StatusConflict {
+		return ErrStaleVersion
+	}
+
+	if status != http.StatusOK && status != http.StatusCreated {
+		return fmt.Errorf("index product: Elasticsearch HTTP %d", status)
+	}
+
+	return nil
 }
 
 func (c *ElasticsearchClient) DeleteProduct(ctx context.Context, productID string, version int64) error {

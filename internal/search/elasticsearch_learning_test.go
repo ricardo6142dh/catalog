@@ -3,6 +3,7 @@ package search
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -60,12 +61,13 @@ func TestSearchProductsBuildsQueryAndDecodesHits(t *testing.T) {
 	}
 }
 
-func TestLearningIndexProductUsesProductIDAsDocumentID(t *testing.T) {
-	t.Skip("TODO(ricardo): implement ElasticsearchClient.IndexProduct")
-
-	var path string
+func TestIndexProductUsesDocumentIDAndExternalVersion(t *testing.T) {
+	var method, path, version, versionType string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
 		path = r.URL.Path
+		version = r.URL.Query().Get("version")
+		versionType = r.URL.Query().Get("version_type")
 		w.WriteHeader(http.StatusCreated)
 	}))
 	defer server.Close()
@@ -76,6 +78,23 @@ func TestLearningIndexProductUsesProductIDAsDocumentID(t *testing.T) {
 	}
 	if !strings.HasSuffix(path, "/_doc/"+productID) {
 		t.Fatalf("request path = %q, want document ID %q", path, productID)
+	}
+	if method != http.MethodPut || version != "42" || versionType != "external_gte" {
+		t.Fatalf("request = %s %s?version=%s&version_type=%s, want PUT with external_gte version 42", method, path, version, versionType)
+	}
+}
+
+func TestIndexProductIdentifiesStaleVersion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+	}))
+	defer server.Close()
+	client, _ := NewElasticsearch(server.URL, time.Second)
+
+	err := client.IndexProduct(context.Background(), ProductDocument{ProductID: "product-1", Version: 41})
+
+	if !errors.Is(err, ErrStaleVersion) {
+		t.Fatalf("IndexProduct() error = %v, want ErrStaleVersion", err)
 	}
 }
 
