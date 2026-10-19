@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/cache"
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/config"
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/indexer"
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/search"
+	"github.com/ricardo6142dh/catalog/internal/cache"
+	"github.com/ricardo6142dh/catalog/internal/config"
+	"github.com/ricardo6142dh/catalog/internal/indexer"
+	"github.com/ricardo6142dh/catalog/internal/search"
 )
 
 func main() {

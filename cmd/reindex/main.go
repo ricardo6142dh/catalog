@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/config"
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/database"
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/search"
+	"github.com/ricardo6142dh/catalog/internal/config"
+	"github.com/ricardo6142dh/catalog/internal/database"
+	"github.com/ricardo6142dh/catalog/internal/search"
 	"github.com/segmentio/kafka-go"
 )
 

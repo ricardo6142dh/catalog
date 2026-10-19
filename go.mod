@@ -1,4 +1,4 @@
-module github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc
+module github.com/ricardo6142dh/catalog
 
 go 1.23.0
 

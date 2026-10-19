@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/search"
+	"github.com/ricardo6142dh/catalog/internal/search"
 )
 
 type TargetIndex interface {

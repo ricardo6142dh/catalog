@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/events"
-	"github.com/linuxtips/descomplicando-system-design/exemplos/catalog-search-cdc/internal/search"
+	"github.com/ricardo6142dh/catalog/internal/events"
+	"github.com/ricardo6142dh/catalog/internal/search"
 )
 
 type recordingWriter struct {
